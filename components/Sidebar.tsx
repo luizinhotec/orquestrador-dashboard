@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, FolderKanban, ListTodo, GitBranch, ScrollText } from 'lucide-react'
+import UserMenu from './UserMenu'
 
 const links = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,6 +34,7 @@ export default function Sidebar() {
           {label}
         </Link>
       ))}
+      <UserMenu />
     </aside>
   )
 }
