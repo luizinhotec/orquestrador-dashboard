@@ -1,13 +1,14 @@
-const BASE = process.env.NEXT_PUBLIC_N8N_URL
-
-export async function getDashboard() {
-  const res = await fetch(`${BASE}/webhook/dashboard`, { cache: 'no-store' })
+async function apiFetch(path: string, options?: RequestInit) {
+  const res = await fetch(path, { cache: 'no-store', ...options })
   return res.json()
 }
 
+export async function getDashboard() {
+  return apiFetch('/api/dashboard')
+}
+
 export async function getProjetos() {
-  const res = await fetch(`${BASE}/webhook/projeto/listar`, { cache: 'no-store' })
-  return res.json()
+  return apiFetch('/api/projetos')
 }
 
 export async function criarProjeto(data: {
@@ -16,29 +17,24 @@ export async function criarProjeto(data: {
   data_inicio: string
   prazo: string
 }) {
-  const res = await fetch(`${BASE}/webhook/projeto/criar`, {
+  return apiFetch('/api/projetos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  return res.json()
 }
 
 export async function atualizarStatusProjeto(id: number, status: string, usuario: string) {
-  const res = await fetch(`${BASE}/webhook/projeto/status`, {
+  return apiFetch('/api/projetos/status', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, status, usuario }),
   })
-  return res.json()
 }
 
 export async function getTarefas(projeto_id?: number) {
-  const url = projeto_id
-    ? `${BASE}/webhook/tarefa/listar?projeto_id=${projeto_id}`
-    : `${BASE}/webhook/tarefa/listar`
-  const res = await fetch(url, { cache: 'no-store' })
-  return res.json()
+  const qs = projeto_id ? `?projeto_id=${projeto_id}` : ''
+  return apiFetch(`/api/tarefas${qs}`)
 }
 
 export async function criarTarefa(data: {
@@ -47,30 +43,26 @@ export async function criarTarefa(data: {
   responsavel: string
   descricao?: string
 }) {
-  const res = await fetch(`${BASE}/webhook/tarefa/criar`, {
+  return apiFetch('/api/tarefas', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  return res.json()
 }
 
 export async function moverTarefa(id: number, status: string, usuario: string) {
-  const res = await fetch(`${BASE}/webhook/tarefa/mover`, {
+  return apiFetch('/api/tarefas/mover', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, status, usuario }),
   })
-  return res.json()
 }
 
 export async function getFunil() {
-  const res = await fetch(`${BASE}/webhook/funil/status`, { cache: 'no-store' })
-  return res.json()
+  return apiFetch('/api/funil')
 }
 
 export async function getLogs(params?: { entidade?: string; entidade_id?: number; usuario?: string }) {
   const qs = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : ''
-  const res = await fetch(`${BASE}/webhook/auditoria/logs${qs}`, { cache: 'no-store' })
-  return res.json()
+  return apiFetch(`/api/logs${qs}`)
 }
