@@ -25,3 +25,7 @@ export async function getLogs(params?: Record<string, string>) {
 export async function getAnalise() {
   return n8nGet('/webhook/ia/analise')
 }
+
+export async function getProjetosServer() {
+  return n8nGet('/webhook/projeto/listar')
+}

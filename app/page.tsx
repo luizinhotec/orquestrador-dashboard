@@ -1,11 +1,12 @@
-import { getDashboard, getAnalise } from '@/lib/server-api'
+import { getDashboard, getProjetosServer } from '@/lib/server-api'
 import { FolderOpen, CheckCircle, Clock, AlertTriangle, Users } from 'lucide-react'
 import AnaliseWidget from '@/components/AnaliseWidget'
 
 export default async function Home() {
-  const [res, analiseRes] = await Promise.all([getDashboard(), getAnalise()])
+  const [res, projRes] = await Promise.all([getDashboard(), getProjetosServer()])
   const { indicadores, produtividade, tarefas_por_status } = res.data ?? {}
-  const analiseInicial = analiseRes.data ?? null
+  const projetos = (projRes.data ?? []) as { id: number; nome: string; status: string }[]
+  const projetosAtivos = projetos.filter(p => p.status !== 'CONCLUÍDO')
 
   const cards = [
     { label: 'Projetos Ativos', value: indicadores?.projetos_ativos ?? 0, icon: FolderOpen, color: 'text-indigo-400' },
@@ -80,7 +81,7 @@ export default async function Home() {
         </div>
       </div>
 
-      <AnaliseWidget inicial={analiseInicial} />
+      <AnaliseWidget projetos={projetosAtivos} />
     </div>
   )
 }
