@@ -66,3 +66,7 @@ export async function getLogs(params?: { entidade?: string; entidade_id?: number
   const qs = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : ''
   return apiFetch(`/api/logs${qs}`)
 }
+
+export async function getAnalise() {
+  return apiFetch('/api/ia/analise')
+}
