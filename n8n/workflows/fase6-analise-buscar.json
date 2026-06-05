@@ -1,0 +1,63 @@
+{
+  "id": "f6a10000-0000-0000-0000-000000000002",
+  "name": "Fase 6 - Análise IA (Buscar Última)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "ia/analise",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "ia-analise-buscar"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, conteudo, created_at FROM analises ORDER BY created_at DESC LIMIT 1;",
+        "options": {}
+      },
+      "id": "buscar-analise",
+      "name": "Buscar Última Análise",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": { "id": "postgres-orq", "name": "Postgres account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nif (!row || !row.id) {\n  return [{ json: { success: true, data: null } }];\n}\nreturn [{ json: { success: true, data: { ...row.conteudo, id: row.id, gerado_em: row.created_at } } }];"
+      },
+      "id": "formatar",
+      "name": "Formatar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Buscar Última Análise", "type": "main", "index": 0 }]] },
+    "Buscar Última Análise": { "main": [[{ "node": "Formatar", "type": "main", "index": 0 }]] },
+    "Formatar": { "main": [[{ "node": "Resposta", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

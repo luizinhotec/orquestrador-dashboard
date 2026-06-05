@@ -1,0 +1,70 @@
+{
+  "name": "Fase 4 - Auditoria Logs",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "auditoria/logs",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "auditoria-logs"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $input.first().json.query || {};\nconst condicoes = [];\nif (query.entidade) condicoes.push(`entidade = '${query.entidade}'`);\nif (query.entidade_id) condicoes.push(`entidade_id = ${parseInt(query.entidade_id)}`);\nif (query.usuario) condicoes.push(`usuario = '${query.usuario}'`);\nconst where = condicoes.length ? `WHERE ${condicoes.join(' AND ')}` : '';\nconst limit = parseInt(query.limit) || 50;\nreturn [{ json: { where, limit } }];"
+      },
+      "id": "montar-filtro",
+      "name": "Montar Filtro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, usuario, acao, entidade, entidade_id, detalhe, created_at FROM logs {{ $json.where }} ORDER BY created_at DESC LIMIT {{ $json.limit }};",
+        "options": {}
+      },
+      "id": "buscar-logs",
+      "name": "Buscar Logs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 300],
+      "credentials": { "postgres": { "id": "postgres-orq", "name": "Postgres account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst logs = items.map(i => i.json);\nreturn [{ json: { success: true, total: logs.length, data: logs } }];"
+      },
+      "id": "formatar",
+      "name": "Formatar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Montar Filtro", "type": "main", "index": 0 }]] },
+    "Montar Filtro": { "main": [[{ "node": "Buscar Logs", "type": "main", "index": 0 }]] },
+    "Buscar Logs": { "main": [[{ "node": "Formatar", "type": "main", "index": 0 }]] },
+    "Formatar": { "main": [[{ "node": "Resposta", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

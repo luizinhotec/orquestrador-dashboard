@@ -1,0 +1,74 @@
+{
+  "id": "f7a10000-0000-0000-0000-000000000002",
+  "name": "Fase 7 - Claims (Criar)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "claims/criar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "claims-criar"
+    },
+    {
+      "parameters": {
+        "jsCode": "function esc(v) { return String(v ?? '').replace(/'/g, \"''\"); }\nconst b = $input.first().json;\nconst acao = String(b.acao ?? '');\nreturn [{ json: {\n  projeto_id:   parseInt(b.projeto_id) || 0,\n  projeto_nome: esc(b.projeto_nome),\n  acao:         esc(acao),\n  responsavel:  esc(b.responsavel),\n  usuario:      esc(b.usuario || b.responsavel),\n  acao_curta:   esc(acao.substring(0, 200))\n} }];"
+      },
+      "id": "preparar",
+      "name": "Preparar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH novo AS (\n  INSERT INTO claims (projeto_id, projeto_nome, acao, responsavel)\n  VALUES ({{ $json.projeto_id }}, '{{ $json.projeto_nome }}', '{{ $json.acao }}', '{{ $json.responsavel }}')\n  RETURNING id, projeto_id, projeto_nome, acao, responsavel, status, created_at\n), log_ins AS (\n  INSERT INTO logs (usuario, acao, entidade, entidade_id, detalhe)\n  SELECT '{{ $json.usuario }}', 'ASSUMIU_ACAO', 'claim', id, '{{ $json.acao_curta }}'\n  FROM novo\n)\nSELECT * FROM novo;",
+        "options": {}
+      },
+      "id": "inserir",
+      "name": "Inserir Claim + Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": { "id": "postgres-orq", "name": "Postgres account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: { success: true, data: row } }];"
+      },
+      "id": "formatar",
+      "name": "Formatar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook":       { "main": [[{ "node": "Preparar Dados",     "type": "main", "index": 0 }]] },
+    "Preparar Dados":{ "main": [[{ "node": "Inserir Claim + Log","type": "main", "index": 0 }]] },
+    "Inserir Claim + Log": { "main": [[{ "node": "Formatar", "type": "main", "index": 0 }]] },
+    "Formatar":      { "main": [[{ "node": "Resposta",           "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

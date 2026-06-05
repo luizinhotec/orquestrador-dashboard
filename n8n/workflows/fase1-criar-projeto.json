@@ -1,0 +1,134 @@
+{
+  "name": "Fase 1 - Criar Projeto",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "projeto/criar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "projeto-criar"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nconst campos = ['nome', 'responsavel', 'data_inicio', 'prazo'];\nconst faltando = campos.filter(c => !body[c]);\n\nif (faltando.length > 0) {\n  return [{ json: { success: false, erro: `Campos obrigatórios faltando: ${faltando.join(', ')}` } }];\n}\n\nreturn [{ json: { valido: true, dados: body } }];"
+      },
+      "id": "validar-campos",
+      "name": "Validar Campos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-valido",
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "checar-validacao",
+      "name": "Válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projetos (nome, responsavel, data_inicio, prazo, status, created_at, updated_at)\nVALUES (\n  '{{ $json.dados.nome }}',\n  '{{ $json.dados.responsavel }}',\n  '{{ $json.dados.data_inicio }}',\n  '{{ $json.dados.prazo }}',\n  'BACKLOG',\n  NOW(),\n  NOW()\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "salvar-projeto",
+      "name": "Salvar Projeto",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-orq",
+          "name": "postgres-orq"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO logs (usuario, acao, entidade, entidade_id, detalhe, created_at)\nVALUES (\n  '{{ $('Validar Campos').first().json.dados.responsavel }}',\n  'CRIOU_PROJETO',\n  'projeto',\n  {{ $json.id }},\n  '{{ JSON.stringify($json) }}',\n  NOW()\n);",
+        "options": {}
+      },
+      "id": "registrar-log",
+      "name": "Registrar Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-orq",
+          "name": "postgres-orq"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, data: $('Salvar Projeto').first().json }) }}",
+        "options": { "responseCode": 201 }
+      },
+      "id": "resposta-sucesso",
+      "name": "Resposta Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, erro: $('Validar Campos').first().json.erro }) }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "resposta-erro",
+      "name": "Resposta Erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 420]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Validar Campos", "type": "main", "index": 0 }]]
+    },
+    "Validar Campos": {
+      "main": [[{ "node": "Válido?", "type": "main", "index": 0 }]]
+    },
+    "Válido?": {
+      "main": [
+        [{ "node": "Salvar Projeto", "type": "main", "index": 0 }],
+        [{ "node": "Resposta Erro", "type": "main", "index": 0 }]
+      ]
+    },
+    "Salvar Projeto": {
+      "main": [[{ "node": "Registrar Log", "type": "main", "index": 0 }]]
+    },
+    "Registrar Log": {
+      "main": [[{ "node": "Resposta Sucesso", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

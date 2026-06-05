@@ -1,0 +1,100 @@
+{
+  "name": "Fase 2 - Criar Tarefa",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tarefa/criar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "tarefa-criar"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst campos = ['projeto_id', 'titulo', 'responsavel'];\nconst faltando = campos.filter(c => !body[c]);\nif (faltando.length > 0) {\n  return [{ json: { success: false, erro: `Campos obrigatórios faltando: ${faltando.join(', ')}` } }];\n}\nreturn [{ json: { valido: true, dados: body } }];"
+      },
+      "id": "validar-campos",
+      "name": "Validar Campos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valido", "leftValue": "={{ $json.valido }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "checar-validacao",
+      "name": "Válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tarefas (projeto_id, titulo, descricao, responsavel, status, created_at, updated_at)\nVALUES (\n  {{ $json.dados.projeto_id }},\n  '{{ $json.dados.titulo }}',\n  '{{ $json.dados.descricao || '' }}',\n  '{{ $json.dados.responsavel }}',\n  'BACKLOG',\n  NOW(),\n  NOW()\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "salvar-tarefa",
+      "name": "Salvar Tarefa",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 200],
+      "credentials": { "postgres": { "id": "postgres-orq", "name": "Postgres account" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO logs (usuario, acao, entidade, entidade_id, detalhe, created_at)\nVALUES (\n  '{{ $('Validar Campos').first().json.dados.responsavel }}',\n  'CRIOU_TAREFA',\n  'tarefa',\n  {{ $json.id }},\n  '{{ JSON.stringify($json) }}',\n  NOW()\n);",
+        "options": {}
+      },
+      "id": "registrar-log",
+      "name": "Registrar Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 200],
+      "credentials": { "postgres": { "id": "postgres-orq", "name": "Postgres account" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": { "responseCode": 201 }
+      },
+      "id": "resposta-sucesso",
+      "name": "Resposta Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": { "responseCode": 400 }
+      },
+      "id": "resposta-erro",
+      "name": "Resposta Erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 420]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validar Campos", "type": "main", "index": 0 }]] },
+    "Validar Campos": { "main": [[{ "node": "Válido?", "type": "main", "index": 0 }]] },
+    "Válido?": { "main": [[{ "node": "Salvar Tarefa", "type": "main", "index": 0 }], [{ "node": "Resposta Erro", "type": "main", "index": 0 }]] },
+    "Salvar Tarefa": { "main": [[{ "node": "Registrar Log", "type": "main", "index": 0 }]] },
+    "Registrar Log": { "main": [[{ "node": "Resposta Sucesso", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

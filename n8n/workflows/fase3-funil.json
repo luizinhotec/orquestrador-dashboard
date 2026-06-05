@@ -1,0 +1,71 @@
+{
+  "name": "Fase 3 - Funil Operacional",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "funil/status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "funil-status"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id AS projeto_id, p.nome AS projeto, t.status, COUNT(t.id)::int AS total FROM projetos p INNER JOIN tarefas t ON t.projeto_id = p.id GROUP BY p.id, p.nome, t.status ORDER BY p.id, t.status;",
+        "options": {}
+      },
+      "id": "buscar-funil",
+      "name": "Buscar Funil",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-orq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst ETAPAS = ['BACKLOG', 'ANÁLISE', 'DESENVOLVIMENTO', 'TESTES', 'HOMOLOGAÇÃO', 'PRODUÇÃO', 'CONCLUÍDO'];\nconst map = {};\nfor (const row of rows) {\n  const pid = String(row.projeto_id);\n  if (!map[pid]) {\n    map[pid] = {\n      projeto_id: Number(row.projeto_id),\n      projeto: row.projeto,\n      etapas: Object.fromEntries(ETAPAS.map(e => [e, 0]))\n    };\n  }\n  const statusKey = ETAPAS.find(e => e === row.status) ?? row.status;\n  if (map[pid].etapas[statusKey] !== undefined) {\n    map[pid].etapas[statusKey] = Number(row.total);\n  }\n}\nreturn [{ json: { success: true, data: Object.values(map) } }];"
+      },
+      "id": "formatar-funil",
+      "name": "Formatar Funil",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Buscar Funil", "type": "main", "index": 0 }]]
+    },
+    "Buscar Funil": {
+      "main": [[{ "node": "Formatar Funil", "type": "main", "index": 0 }]]
+    },
+    "Formatar Funil": {
+      "main": [[{ "node": "Resposta", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

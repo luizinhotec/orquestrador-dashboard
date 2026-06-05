@@ -1,0 +1,73 @@
+{
+  "name": "Fase 1 - Listar Projetos",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "projeto/listar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "projeto-listar"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, nome, cliente, responsavel, status, data_inicio, prazo, created_at, updated_at FROM projetos ORDER BY created_at DESC;",
+        "options": {}
+      },
+      "id": "buscar-projetos",
+      "name": "Buscar Projetos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-orq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst projetos = items.map(i => i.json);\nreturn [{ json: { success: true, total: projetos.length, data: projetos } }];"
+      },
+      "id": "formatar-resposta",
+      "name": "Formatar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Buscar Projetos", "type": "main", "index": 0 }]]
+    },
+    "Buscar Projetos": {
+      "main": [[{ "node": "Formatar Resposta", "type": "main", "index": 0 }]]
+    },
+    "Formatar Resposta": {
+      "main": [[{ "node": "Resposta", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

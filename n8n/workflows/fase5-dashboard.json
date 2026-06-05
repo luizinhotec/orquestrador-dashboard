@@ -1,0 +1,59 @@
+{
+  "name": "Fase 5 - Dashboard Executivo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "dashboard"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT COUNT(*) FROM projetos WHERE status != 'CONCLUÍDO') as projetos_ativos, (SELECT COUNT(*) FROM projetos WHERE status = 'CONCLUÍDO') as projetos_concluidos, (SELECT COUNT(*) FROM tarefas WHERE status != 'CONCLUÍDO') as tarefas_abertas, (SELECT COUNT(*) FROM tarefas WHERE status = 'CONCLUÍDO') as tarefas_concluidas, (SELECT json_agg(json_build_object('responsavel', responsavel, 'total', total_tarefas, 'concluidas', concluidas)) FROM (SELECT responsavel, COUNT(*) as total_tarefas, SUM(CASE WHEN status = 'CONCLUÍDO' THEN 1 ELSE 0 END) as concluidas FROM tarefas GROUP BY responsavel) as prod) as produtividade, (SELECT json_agg(json_build_object('status', status, 'total', total)) FROM (SELECT status, COUNT(*) as total FROM tarefas GROUP BY status) as st) as tarefas_por_status;",
+        "options": {}
+      },
+      "id": "buscar-tudo",
+      "name": "Buscar Tudo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": { "postgres": { "id": "postgres-orq", "name": "Postgres account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: {\n  success: true,\n  data: {\n    indicadores: {\n      projetos_ativos: parseInt(d.projetos_ativos) || 0,\n      projetos_concluidos: parseInt(d.projetos_concluidos) || 0,\n      tarefas_abertas: parseInt(d.tarefas_abertas) || 0,\n      tarefas_concluidas: parseInt(d.tarefas_concluidas) || 0\n    },\n    produtividade: d.produtividade || [],\n    tarefas_por_status: d.tarefas_por_status || []\n  }\n}}];"
+      },
+      "id": "formatar",
+      "name": "Formatar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Buscar Tudo", "type": "main", "index": 0 }]] },
+    "Buscar Tudo": { "main": [[{ "node": "Formatar", "type": "main", "index": 0 }]] },
+    "Formatar": { "main": [[{ "node": "Resposta", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

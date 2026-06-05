@@ -1,0 +1,100 @@
+{
+  "name": "Fase 2 - Mover Tarefa",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tarefa/mover",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "tarefa-mover"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst statusValidos = ['BACKLOG','ANÁLISE','DESENVOLVIMENTO','TESTES','HOMOLOGAÇÃO','PRODUÇÃO','CONCLUÍDO'];\nif (!body.id) return [{ json: { success: false, erro: 'Campo obrigatório faltando: id' } }];\nif (!body.status) return [{ json: { success: false, erro: 'Campo obrigatório faltando: status' } }];\nif (!statusValidos.includes(body.status)) return [{ json: { success: false, erro: `Status inválido. Use: ${statusValidos.join(', ')}` } }];\nif (!body.usuario) return [{ json: { success: false, erro: 'Campo obrigatório faltando: usuario' } }];\nreturn [{ json: { valido: true, dados: body } }];"
+      },
+      "id": "validar-campos",
+      "name": "Validar Campos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valido", "leftValue": "={{ $json.valido }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "checar-validacao",
+      "name": "Válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tarefas SET status = '{{ $json.dados.status }}', updated_at = NOW() WHERE id = {{ $json.dados.id }} RETURNING *;",
+        "options": {}
+      },
+      "id": "mover-tarefa",
+      "name": "Mover Tarefa",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 200],
+      "credentials": { "postgres": { "id": "postgres-orq", "name": "Postgres account" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO logs (usuario, acao, entidade, entidade_id, detalhe, created_at)\nVALUES (\n  '{{ $('Validar Campos').first().json.dados.usuario }}',\n  'MOVEU_TAREFA',\n  'tarefa',\n  {{ $('Validar Campos').first().json.dados.id }},\n  '{{ JSON.stringify({ status_novo: $('Validar Campos').first().json.dados.status }) }}',\n  NOW()\n);",
+        "options": {}
+      },
+      "id": "registrar-log",
+      "name": "Registrar Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 200],
+      "credentials": { "postgres": { "id": "postgres-orq", "name": "Postgres account" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta-sucesso",
+      "name": "Resposta Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": { "responseCode": 400 }
+      },
+      "id": "resposta-erro",
+      "name": "Resposta Erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 420]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validar Campos", "type": "main", "index": 0 }]] },
+    "Validar Campos": { "main": [[{ "node": "Válido?", "type": "main", "index": 0 }]] },
+    "Válido?": { "main": [[{ "node": "Mover Tarefa", "type": "main", "index": 0 }], [{ "node": "Resposta Erro", "type": "main", "index": 0 }]] },
+    "Mover Tarefa": { "main": [[{ "node": "Registrar Log", "type": "main", "index": 0 }]] },
+    "Registrar Log": { "main": [[{ "node": "Resposta Sucesso", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

@@ -1,0 +1,74 @@
+{
+  "id": "f7a10000-0000-0000-0000-000000000003",
+  "name": "Fase 7 - Claims (Resolver)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "claims/resolver",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "claims-resolver"
+    },
+    {
+      "parameters": {
+        "jsCode": "function esc(v) { return String(v ?? '').replace(/'/g, \"''\"); }\nconst b = $input.first().json;\nreturn [{ json: {\n  claim_id: parseInt(b.id) || 0,\n  usuario:  esc(b.usuario)\n} }];"
+      },
+      "id": "preparar",
+      "name": "Preparar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH upd AS (\n  UPDATE claims\n  SET status = 'resolvido', resolvido_em = NOW()\n  WHERE id = {{ $json.claim_id }} AND status = 'ativo'\n  RETURNING id, projeto_id, projeto_nome, acao, responsavel\n), log_ins AS (\n  INSERT INTO logs (usuario, acao, entidade, entidade_id, detalhe)\n  SELECT '{{ $json.usuario }}', 'RESOLVEU_ACAO', 'claim', id, LEFT(acao, 200)\n  FROM upd\n)\nSELECT * FROM upd;",
+        "options": {}
+      },
+      "id": "resolver",
+      "name": "Resolver Claim + Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": { "id": "postgres-orq", "name": "Postgres account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first()?.json;\nconst ok = !!row?.id;\nreturn [{ json: { success: ok, data: row ?? null } }];"
+      },
+      "id": "formatar",
+      "name": "Formatar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook":        { "main": [[{ "node": "Preparar Dados",      "type": "main", "index": 0 }]] },
+    "Preparar Dados": { "main": [[{ "node": "Resolver Claim + Log","type": "main", "index": 0 }]] },
+    "Resolver Claim + Log": { "main": [[{ "node": "Formatar", "type": "main", "index": 0 }]] },
+    "Formatar":       { "main": [[{ "node": "Resposta",            "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

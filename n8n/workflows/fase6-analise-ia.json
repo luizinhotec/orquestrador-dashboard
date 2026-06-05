@@ -1,0 +1,125 @@
+{
+  "id": "f6a10000-0000-0000-0000-000000000001",
+  "name": "Fase 6 - Análise IA (Analisar)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ia/analisar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "ia-analisar"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id AS projeto_id, p.nome AS projeto, p.responsavel AS responsavel_projeto, p.status AS status_projeto, p.prazo, t.id AS tarefa_id, t.titulo AS tarefa, t.responsavel AS responsavel_tarefa, t.status AS status_tarefa FROM projetos p LEFT JOIN tarefas t ON t.projeto_id = p.id WHERE p.status != 'CONCLUÍDO' ORDER BY p.prazo ASC NULLS LAST, p.id, t.id;",
+        "options": {}
+      },
+      "id": "buscar-dados",
+      "name": "Buscar Projetos e Tarefas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": { "id": "postgres-orq", "name": "Postgres account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\n\nconst projetos = {};\nfor (const row of rows) {\n  const pid = row.projeto_id;\n  if (!projetos[pid]) {\n    projetos[pid] = {\n      id: pid,\n      nome: row.projeto,\n      responsavel: row.responsavel_projeto,\n      status: row.status_projeto,\n      prazo: row.prazo ? new Date(row.prazo).toLocaleDateString('pt-BR') : 'sem prazo',\n      tarefas: []\n    };\n  }\n  if (row.tarefa_id) {\n    projetos[pid].tarefas.push({\n      id: row.tarefa_id,\n      titulo: row.tarefa,\n      responsavel: row.responsavel_tarefa,\n      status: row.status_tarefa\n    });\n  }\n}\n\nconst lista = Object.values(projetos);\nconst hoje = new Date().toLocaleDateString('pt-BR');\n\nconst contexto = lista.map(p => {\n  const tarefas = p.tarefas.length\n    ? p.tarefas.map(t => `    - [${t.status}] ${t.titulo} (${t.responsavel})`).join('\\n')\n    : '    (sem tarefas)';\n  return `Projeto: ${p.nome}\\nStatus: ${p.status}\\nResponsável: ${p.responsavel}\\nPrazo: ${p.prazo}\\nTarefas:\\n${tarefas}`;\n}).join('\\n\\n');\n\nconst prompt = `Você é um assistente de gestão de projetos de software. Hoje é ${hoje}.\\n\\nAnalise o estado atual dos projetos abaixo e identifique ações concretas que os desenvolvedores devem tomar agora.\\n\\n${contexto}\\n\\nRetorne APENAS JSON válido (sem markdown, sem texto adicional) neste formato exato:\\n{\\n  \"analise_geral\": \"Resumo do estado em 2-3 frases diretas\",\\n  \"alertas\": [\"alerta urgente 1\", \"alerta 2\"],\\n  \"acoes\": [\\n    {\"prioridade\": \"alta\", \"responsavel\": \"Nome\", \"projeto\": \"Nome\", \"acao\": \"O que fazer especificamente\"}\\n  ]\\n}`;\n\nreturn [{ json: {\n  apiKey: process.env.ANTHROPIC_API_KEY,\n  payload: {\n    model: 'claude-sonnet-4-6',\n    max_tokens: 1024,\n    messages: [{ role: 'user', content: prompt }]\n  }\n} }];"
+      },
+      "id": "montar-prompt",
+      "name": "Montar Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $json.apiKey }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "id": "chamar-claude",
+      "name": "Chamar Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst texto = resp.content?.[0]?.text ?? '{}';\nlet analise;\ntry {\n  analise = JSON.parse(texto);\n} catch {\n  analise = { analise_geral: texto, alertas: [], acoes: [] };\n}\nanalise.gerado_em = new Date().toISOString();\nreturn [{ json: { analise } }];"
+      },
+      "id": "parsear-resposta",
+      "name": "Parsear Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO analises (conteudo) VALUES ('{{ JSON.stringify($json.analise) }}'::jsonb) RETURNING id;",
+        "options": {}
+      },
+      "id": "salvar-analise",
+      "name": "Salvar Análise",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 300],
+      "credentials": {
+        "postgres": { "id": "postgres-orq", "name": "Postgres account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const analise = $('Parsear Resposta').first().json.analise;\nreturn [{ json: { success: true, data: analise } }];"
+      },
+      "id": "montar-retorno",
+      "name": "Montar Retorno",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Buscar Projetos e Tarefas", "type": "main", "index": 0 }]] },
+    "Buscar Projetos e Tarefas": { "main": [[{ "node": "Montar Prompt", "type": "main", "index": 0 }]] },
+    "Montar Prompt": { "main": [[{ "node": "Chamar Claude", "type": "main", "index": 0 }]] },
+    "Chamar Claude": { "main": [[{ "node": "Parsear Resposta", "type": "main", "index": 0 }]] },
+    "Parsear Resposta": { "main": [[{ "node": "Salvar Análise", "type": "main", "index": 0 }]] },
+    "Salvar Análise": { "main": [[{ "node": "Montar Retorno", "type": "main", "index": 0 }]] },
+    "Montar Retorno": { "main": [[{ "node": "Resposta", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
