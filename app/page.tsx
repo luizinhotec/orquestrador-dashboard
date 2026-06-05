@@ -1,4 +1,4 @@
-import { getDashboard, getAnalise } from '@/lib/api'
+import { getDashboard, getAnalise } from '@/lib/server-api'
 import { FolderOpen, CheckCircle, Clock, AlertTriangle, Users } from 'lucide-react'
 import AnaliseWidget from '@/components/AnaliseWidget'
 

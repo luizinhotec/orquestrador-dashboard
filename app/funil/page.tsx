@@ -1,4 +1,4 @@
-import { getFunil } from '@/lib/api'
+import { getFunil } from '@/lib/server-api'
 
 const ETAPAS = ['BACKLOG','ANÁLISE','DESENVOLVIMENTO','TESTES','HOMOLOGAÇÃO','PRODUÇÃO','CONCLUÍDO']
 

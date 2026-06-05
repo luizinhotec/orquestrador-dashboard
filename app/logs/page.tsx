@@ -1,4 +1,4 @@
-import { getLogs } from '@/lib/api'
+import { getLogs } from '@/lib/server-api'
 
 type Log = { id: number; usuario: string; acao: string; entidade: string; entidade_id: number; detalhe: string; created_at: string }
 
