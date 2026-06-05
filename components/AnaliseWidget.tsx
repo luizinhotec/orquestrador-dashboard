@@ -67,8 +67,9 @@ export default function AnaliseWidget({ projetos }: { projetos: Projeto[] }) {
   async function assumir(acao: string) {
     if (!selectedProjeto || !usuario) return
     setClaimando(acao)
+    setErro('')
     try {
-      await fetch('/api/ia/claims', {
+      const res = await fetch('/api/ia/claims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -79,22 +80,31 @@ export default function AnaliseWidget({ projetos }: { projetos: Projeto[] }) {
           usuario:      usuario.nome,
         }),
       })
-      await carregarClaims(selectedProjeto.id)
-    } catch { /* silently fail */ }
+      const json = await res.json()
+      if (!json.success) setErro(`Erro ao assumir: ${json.erro ?? 'verifique se o workflow n8n está ativo'}`)
+      else await carregarClaims(selectedProjeto.id)
+    } catch (e) {
+      setErro(`Erro de conexão ao assumir tarefa: ${e}`)
+    }
     setClaimando(null)
   }
 
   async function resolver(claim: Claim) {
     if (!usuario) return
     setClaimando(String(claim.id))
+    setErro('')
     try {
-      await fetch('/api/ia/claims/resolver', {
+      const res = await fetch('/api/ia/claims/resolver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: claim.id, usuario: usuario.nome }),
       })
-      await carregarClaims(claim.projeto_id)
-    } catch { /* silently fail */ }
+      const json = await res.json()
+      if (!json.success) setErro(`Erro ao resolver: ${json.erro ?? 'tente novamente'}`)
+      else await carregarClaims(claim.projeto_id)
+    } catch (e) {
+      setErro(`Erro de conexão ao resolver: ${e}`)
+    }
     setClaimando(null)
   }
 
