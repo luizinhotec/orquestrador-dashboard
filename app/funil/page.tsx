@@ -26,7 +26,7 @@ export default async function FunilPage() {
         projetos.map((p: { projeto_id: number; projeto: string; etapas: Record<string, number> }) => (
           <div key={p.projeto_id} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <h2 className="font-semibold mb-4">{p.projeto}</h2>
-            <div className="grid grid-cols-4 xl:grid-cols-7 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
               {ETAPAS.map(etapa => (
                 <div key={etapa} className={`${etapaColor[etapa]} rounded-lg p-3 text-center`}>
                   <p className="text-2xl font-bold">{p.etapas[etapa] ?? 0}</p>

@@ -66,7 +66,7 @@ export default function TarefasPage() {
       {showForm && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
           <h2 className="font-semibold">Nova Tarefa</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <select className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" value={form.projeto_id} onChange={e => setForm(f => ({ ...f, projeto_id: e.target.value }))}>
               <option value="">Selecione o projeto</option>
               {projetos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
@@ -87,7 +87,7 @@ export default function TarefasPage() {
       {loading ? <p className="text-gray-500">Carregando...</p> : (
         <div className="space-y-3">
           {tarefas.map(t => (
-            <div key={t.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex items-center gap-4">
+            <div key={t.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{t.titulo}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{t.responsavel} · {t.projeto_nome}</p>
@@ -95,7 +95,7 @@ export default function TarefasPage() {
               <select
                 value={t.status}
                 onChange={e => mover(t.id, e.target.value)}
-                className={`${statusColor[t.status] ?? 'bg-gray-800'} border border-gray-700 rounded-lg px-3 py-1.5 text-xs`}
+                className={`${statusColor[t.status] ?? 'bg-gray-800'} border border-gray-700 rounded-lg px-3 py-1.5 text-xs w-full sm:w-auto`}
               >
                 {FUNIL.map(s => <option key={s} value={s}>{s}</option>)}
               </select>

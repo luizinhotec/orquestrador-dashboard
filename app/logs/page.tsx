@@ -18,7 +18,8 @@ export default async function LogsPage() {
       <h1 className="text-2xl font-bold">Auditoria</h1>
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="border-b border-gray-800 text-gray-500 text-left">
               <th className="px-5 py-3">Data/Hora</th>
@@ -45,6 +46,7 @@ export default async function LogsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

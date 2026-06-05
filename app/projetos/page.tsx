@@ -62,7 +62,7 @@ export default function ProjetosPage() {
       {showForm && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
           <h2 className="font-semibold">Novo Projeto</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Nome do projeto" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
             <input className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Responsável" value={form.responsavel} onChange={e => setForm(f => ({ ...f, responsavel: e.target.value }))} />
             <div className="space-y-1">
@@ -88,7 +88,7 @@ export default function ProjetosPage() {
       ) : (
         <div className="space-y-3">
           {projetos.map(p => (
-            <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex items-center gap-4">
+            <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{p.nome}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{p.responsavel} · prazo {p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR') : '-'}</p>
@@ -96,7 +96,7 @@ export default function ProjetosPage() {
               <select
                 value={p.status}
                 onChange={e => moverStatus(p.id, e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs"
+                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs w-full sm:w-auto"
               >
                 {FUNIL.map(s => <option key={s} value={s}>{s}</option>)}
               </select>

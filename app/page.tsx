@@ -18,7 +18,7 @@ export default async function Home() {
     <div className="space-y-8">
       <h1 className="text-2xl font-bold">Dashboard Executivo</h1>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex items-center gap-4">
             <Icon className={`${color} shrink-0`} size={28} />

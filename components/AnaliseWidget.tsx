@@ -38,7 +38,7 @@ export default function AnaliseWidget({ inicial }: { inicial: Analise | null }) 
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="font-semibold flex items-center gap-2">
           <Sparkles size={16} className="text-indigo-400" />
           Análise IA — Ações Recomendadas
