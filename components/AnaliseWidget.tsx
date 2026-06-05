@@ -31,6 +31,14 @@ export default function AnaliseWidget({ projetos }: { projetos: Projeto[] }) {
     setClaims(json.data ?? [])
   }
 
+  async function selecionarProjeto(p: Projeto | null) {
+    setSelectedProjeto(p)
+    setAnalise(null)
+    setErro('')
+    if (p) await carregarClaims(p.id)
+    else setClaims([])
+  }
+
   async function analisar() {
     if (!selectedProjeto) return
     setCarregando(true)
@@ -106,10 +114,7 @@ export default function AnaliseWidget({ projetos }: { projetos: Projeto[] }) {
           value={selectedProjeto?.id ?? ''}
           onChange={e => {
             const p = projetos.find(p => p.id === parseInt(e.target.value))
-            setSelectedProjeto(p ?? null)
-            setAnalise(null)
-            setClaims([])
-            setErro('')
+            selecionarProjeto(p ?? null)
           }}
           className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
         >
@@ -133,6 +138,40 @@ export default function AnaliseWidget({ projetos }: { projetos: Projeto[] }) {
 
       {!selectedProjeto && !carregando && (
         <p className="text-gray-500 text-sm">Selecione um projeto para a IA analisar e recomendar ações. Cada ação pode ser assumida por um dev — enquanto estiver em andamento, ninguém mais pode pegar a mesma.</p>
+      )}
+
+      {selectedProjeto && claims.length > 0 && (
+        <div className="border border-gray-700 rounded-lg p-4 space-y-2">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Em andamento neste projeto</p>
+          {claims.map(c => {
+            const isMine = c.responsavel === usuario?.nome
+            return (
+              <div key={c.id} className="flex items-center justify-between gap-3 text-sm flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  {isMine
+                    ? <User size={12} className="text-indigo-400 shrink-0" />
+                    : <Lock size={12} className="text-gray-500 shrink-0" />}
+                  <span className="truncate text-gray-300">{c.acao}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-gray-500">{c.responsavel}</span>
+                  {isMine && (
+                    <button
+                      onClick={() => resolver(c)}
+                      disabled={claimando === String(c.id)}
+                      className="inline-flex items-center gap-1 text-xs bg-green-800/60 hover:bg-green-700/60 text-green-300 rounded px-2 py-0.5 transition-colors disabled:opacity-50"
+                    >
+                      {claimando === String(c.id)
+                        ? <Loader2 size={10} className="animate-spin" />
+                        : <CheckCircle2 size={10} />}
+                      Concluído
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
 
       {carregando && (
