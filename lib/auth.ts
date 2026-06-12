@@ -1,3 +1,5 @@
+import Cookies from 'js-cookie'
+
 const BASE = process.env.NEXT_PUBLIC_N8N_URL
 
 async function safeFetch(url: string, options: RequestInit) {
@@ -38,11 +40,13 @@ export function getUsuario() {
 export function salvarSessao(token: string, usuario: object) {
   localStorage.setItem('token', token)
   localStorage.setItem('usuario', JSON.stringify(usuario))
+  Cookies.set('auth_token', token, { expires: 7, sameSite: 'lax' })
 }
 
 export function limparSessao() {
   localStorage.removeItem('token')
   localStorage.removeItem('usuario')
+  Cookies.remove('auth_token')
 }
 
 export function estaAutenticado(): boolean {
